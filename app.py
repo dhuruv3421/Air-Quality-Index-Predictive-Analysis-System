@@ -111,10 +111,18 @@ def show_error(message):
     """Display error message in a consistent location"""
     error_placeholder.error(f" {str(message)}")
 
-@st.cache_data
+
+@st.cache_data(hash_funcs={pd.DataFrame: lambda _: None})
 def load_data():
     try:
         df = pd.read_csv(r'city_day.csv')
+        df['Date'] = pd.to_datetime(df['Date'], errors='coerce').dt.tz_localize(None)
+        
+        # Remove rows with invalid dates
+        df = df[df['Date'].notna()]
+        
+        # For display purposes, create a string version
+        df['Date_Display'] = df['Date'].dt.strftime('%Y-%m-%d')
         
         # Validate required columns
         required_columns = ['Date', 'City', 'AQI']
@@ -387,9 +395,11 @@ def main():
         # Show raw data
         if st.checkbox("Show Raw Data"):
             try:
+                # Convert datetime to string for display
                 display_df = df.copy()
                 display_df['Date'] = display_df['Date_Display']
-                st.dataframe(display_df.drop(columns=['Date_Display']))
+                st.dataframe(display_df.drop(columns=['Date_Display']), 
+                            use_container_width=True)
             except Exception as e:
                 show_error(f"Error displaying data: {str(e)}")
 
@@ -791,11 +801,11 @@ def main():
             with col2:
                 trend_year = st.selectbox("Select Year", sorted(df['Year'].unique(), reverse=True))
             
-            city_year_df = df[(df['City'] == trend_city) & (df['Year'] == trend_year)]
+            city_year_df = df.loc[(df['City'] == trend_city) & (df['Year'] == trend_year)]
             
             if not city_year_df.empty:
                 # Monthly trends for the selected year and city
-                monthly_avg = city_year_df.groupby('Month')['AQI'].mean().reset_index()
+                monthly_avg = city_year_df.groupby('Month', observed=True)['AQI'].mean().reset_index()
                 monthly_avg['Month_Name'] = monthly_avg['Month'].apply(lambda x: datetime(2000, x, 1).strftime('%b'))
                 
                 fig = px.line(
