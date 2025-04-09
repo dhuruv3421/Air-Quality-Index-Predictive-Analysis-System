@@ -821,9 +821,15 @@ def main():
                 city_year_df['Season'] = city_year_df['Month'].apply(get_season)
                 seasonal_avg = city_year_df.groupby('Season')['AQI'].mean().reset_index()
                 
-                # Order seasons properly
+                # Order seasons properly - only include seasons that exist in the data
                 season_order = ['Winter', 'Spring', 'Summer', 'Fall']
-                seasonal_avg['Season'] = pd.Categorical(seasonal_avg['Season'], categories=season_order, ordered=True)
+                existing_seasons = [s for s in season_order if s in seasonal_avg['Season'].values]
+                
+                seasonal_avg['Season'] = pd.Categorical(
+                    seasonal_avg['Season'], 
+                    categories=existing_seasons,  # Only use existing seasons
+                    ordered=True
+                )
                 seasonal_avg = seasonal_avg.sort_values('Season')
                 
                 fig = px.bar(
@@ -838,9 +844,11 @@ def main():
                 # Pollutant composition by season
                 if existing_pollutants:
                     seasonal_pollutants = city_year_df.groupby('Season')[existing_pollutants].mean().reset_index()
+                    
+                    # Only include seasons that exist in the data
                     seasonal_pollutants['Season'] = pd.Categorical(
                         seasonal_pollutants['Season'], 
-                        categories=season_order, 
+                        categories=existing_seasons,
                         ordered=True
                     )
                     seasonal_pollutants = seasonal_pollutants.sort_values('Season')
@@ -853,35 +861,35 @@ def main():
                     
                     norm_cols = [f'{col}_norm' for col in existing_pollutants]
                     
-                    # Create radar chart
-                    fig = go.Figure()
-                    
-                    for i, season in enumerate(season_order):
-                        if season in seasonal_pollutants['Season'].values:
+                    # Create radar chart only if we have data
+                    if not seasonal_pollutants.empty:
+                        fig = go.Figure()
+                        
+                        for season in existing_seasons:
                             season_data = seasonal_pollutants[seasonal_pollutants['Season'] == season]
-                            fig.add_trace(go.Scatterpolar(
-                                r=season_data[norm_cols].values.flatten().tolist(),
-                                theta=existing_pollutants,
-                                fill='toself',
-                                name=season
-                            ))
-                    
-                    fig.update_layout(
-                        polar=dict(
-                            radialaxis=dict(
-                                visible=True,
-                                range=[0, 1]
-                            )
-                        ),
-                        title=f"Seasonal Pollutant Composition for {trend_city} in {trend_year}"
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
+                            if not season_data.empty:
+                                fig.add_trace(go.Scatterpolar(
+                                    r=season_data[norm_cols].values.flatten().tolist(),
+                                    theta=existing_pollutants,
+                                    fill='toself',
+                                    name=season
+                                ))
+                        
+                        fig.update_layout(
+                            polar=dict(
+                                radialaxis=dict(
+                                    visible=True,
+                                    range=[0, 1]
+                                )
+                            ),
+                            title=f"Seasonal Pollutant Composition for {trend_city} in {trend_year}"
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
             else:
                 st.warning(f"No data available for {trend_city} in {trend_year}")
-        
+
         except Exception as e:
             show_error(f"Error in historical trend analysis: {str(e)}")
-        
         # Air quality health impact section
         # Update the AQI Health Impact Chart section
         st.header("Health Impact Assessment", divider='rainbow')
