@@ -3,7 +3,8 @@ import numpy as np
 import streamlit as st
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.tree import DecisionTreeRegressor
+from sklearn.tree import DecisionTreeRegressor, plot_tree
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error, mean_absolute_percentage_error
 from sklearn.preprocessing import LabelEncoder
@@ -12,6 +13,9 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
 import traceback
+import matplotlib.pyplot as plt
+
+
 
 # Set page config
 st.set_page_config(layout="wide", page_title="Air Quality Analysis System")
@@ -395,14 +399,21 @@ def main():
         # Show raw data
         if st.checkbox("Show Raw Data"):
             try:
-                # Convert datetime to string for display
+                # Create a copy of the dataframe for display purposes
                 display_df = df.copy()
-                display_df['Date'] = display_df['Date_Display']
-                st.dataframe(display_df.drop(columns=['Date_Display']), 
-                            use_container_width=True)
+                
+                # Convert datetime to string for display
+                if 'Date' in display_df.columns:
+                    display_df['Date'] = display_df['Date'].dt.strftime('%Y-%m-%d')
+                
+                # Drop the temporary display column if it exists
+                if 'Date_Display' in display_df.columns:
+                    display_df = display_df.drop(columns=['Date_Display'])
+                
+                st.dataframe(display_df, use_container_width=True)
             except Exception as e:
                 show_error(f"Error displaying data: {str(e)}")
-
+                
         # Basic statistics
         if st.checkbox("Show Basic Statistics"):
             try:
@@ -444,68 +455,160 @@ def main():
             show_error(f"Error generating time series plot: {str(e)}")
 
         # AQI Bucket distribution
+        # st.subheader("AQI Category Distribution")
+        # try:
+        #     if 'AQI_Bucket' in df.columns:
+        #         aqi_color_map = {
+        #             'Good': '#55A84F', 'Satisfactory': '#A3C853', 'Moderate': '#FFF833',
+        #             'Poor': '#F29C33', 'Very Poor': '#E93F33', 'Severe': '#AF2D24'
+        #         }
+                
+        #         aqi_bucket_counts = df['AQI_Bucket'].value_counts().reset_index()
+        #         aqi_bucket_counts.columns = ['AQI Category', 'Count']
+                
+        #         category_order = ['Good', 'Satisfactory', 'Moderate', 'Poor', 'Very Poor', 'Severe']
+        #         aqi_bucket_counts['AQI Category'] = pd.Categorical(
+        #             aqi_bucket_counts['AQI Category'],
+        #             categories=category_order,
+        #             ordered=True
+        #         )
+                
+        #         fig = px.bar(
+        #             aqi_bucket_counts.sort_values('AQI Category'), 
+        #             x='AQI Category', 
+        #             y='Count', 
+        #             color='AQI Category',
+        #             color_discrete_map=aqi_color_map,
+        #             title="Distribution of AQI Categories"
+        #         )
+        #         st.plotly_chart(fig, use_container_width=True)
+        #     else:
+        #         # Create AQI buckets if they don't exist
+        #         df['AQI_Bucket'] = pd.cut(
+        #             df['AQI'],
+        #             bins=[0, 50, 100, 200, 300, 400, float('inf')],
+        #             labels=['Good', 'Satisfactory', 'Moderate', 'Poor', 'Very Poor', 'Severe']
+        #         )
+                
+        #         aqi_color_map = {
+        #             'Good': '#55A84F', 'Satisfactory': '#A3C853', 'Moderate': '#FFF833',
+        #             'Poor': '#F29C33', 'Very Poor': '#E93F33', 'Severe': '#AF2D24'
+        #         }
+                
+        #         aqi_bucket_counts = df['AQI_Bucket'].value_counts().reset_index()
+        #         aqi_bucket_counts.columns = ['AQI Category', 'Count']
+                
+        #         category_order = ['Good', 'Satisfactory', 'Moderate', 'Poor', 'Very Poor', 'Severe']
+        #         aqi_bucket_counts['AQI Category'] = pd.Categorical(
+        #             aqi_bucket_counts['AQI Category'],
+        #             categories=category_order,
+        #             ordered=True
+        #         )
+                
+        #         fig = px.bar(
+        #             aqi_bucket_counts.sort_values('AQI Category'), 
+        #             x='AQI Category', 
+        #             y='Count', 
+        #             color='AQI Category',
+        #             color_discrete_map=aqi_color_map,
+        #             title="Distribution of AQI Categories"
+        #         )
+        #         st.plotly_chart(fig, use_container_width=True)
+        # except Exception as e:
+        #     show_error(f"Error generating AQI category distribution: {str(e)}")
+
+        # AQI Bucket distribution - FIXED VERSION with wider bars
         st.subheader("AQI Category Distribution")
         try:
-            if 'AQI_Bucket' in df.columns:
-                aqi_color_map = {
-                    'Good': '#55A84F', 'Satisfactory': '#A3C853', 'Moderate': '#FFF833',
-                    'Poor': '#F29C33', 'Very Poor': '#E93F33', 'Severe': '#AF2D24'
-                }
-                
-                aqi_bucket_counts = df['AQI_Bucket'].value_counts().reset_index()
-                aqi_bucket_counts.columns = ['AQI Category', 'Count']
-                
-                category_order = ['Good', 'Satisfactory', 'Moderate', 'Poor', 'Very Poor', 'Severe']
-                aqi_bucket_counts['AQI Category'] = pd.Categorical(
-                    aqi_bucket_counts['AQI Category'],
-                    categories=category_order,
-                    ordered=True
-                )
-                
-                fig = px.bar(
-                    aqi_bucket_counts.sort_values('AQI Category'), 
-                    x='AQI Category', 
-                    y='Count', 
-                    color='AQI Category',
-                    color_discrete_map=aqi_color_map,
-                    title="Distribution of AQI Categories"
-                )
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                # Create AQI buckets if they don't exist
-                df['AQI_Bucket'] = pd.cut(
-                    df['AQI'],
-                    bins=[0, 50, 100, 200, 300, 400, float('inf')],
-                    labels=['Good', 'Satisfactory', 'Moderate', 'Poor', 'Very Poor', 'Severe']
-                )
-                
-                aqi_color_map = {
-                    'Good': '#55A84F', 'Satisfactory': '#A3C853', 'Moderate': '#FFF833',
-                    'Poor': '#F29C33', 'Very Poor': '#E93F33', 'Severe': '#AF2D24'
-                }
-                
-                aqi_bucket_counts = df['AQI_Bucket'].value_counts().reset_index()
-                aqi_bucket_counts.columns = ['AQI Category', 'Count']
-                
-                category_order = ['Good', 'Satisfactory', 'Moderate', 'Poor', 'Very Poor', 'Severe']
-                aqi_bucket_counts['AQI Category'] = pd.Categorical(
-                    aqi_bucket_counts['AQI Category'],
-                    categories=category_order,
-                    ordered=True
-                )
-                
-                fig = px.bar(
-                    aqi_bucket_counts.sort_values('AQI Category'), 
-                    x='AQI Category', 
-                    y='Count', 
-                    color='AQI Category',
-                    color_discrete_map=aqi_color_map,
-                    title="Distribution of AQI Categories"
-                )
-                st.plotly_chart(fig, use_container_width=True)
+            # Create AQI buckets if they don't exist
+            df['AQI_Bucket'] = pd.cut(
+                df['AQI'],
+                bins=[0, 50, 100, 200, 300, 400, float('inf')],
+                labels=['Good', 'Satisfactory', 'Moderate', 'Poor', 'Very Poor', 'Severe']
+            )
+            
+            aqi_color_map = {
+                'Good': '#55A84F', 
+                'Satisfactory': '#A3C853', 
+                'Moderate': '#FFF833',
+                'Poor': '#F29C33', 
+                'Very Poor': '#E93F33', 
+                'Severe': '#AF2D24'
+            }
+            
+            # Get counts and ensure all categories are present
+            aqi_bucket_counts = df['AQI_Bucket'].value_counts().reset_index()
+            aqi_bucket_counts.columns = ['AQI Category', 'Count']
+            
+            # Define the correct order
+            category_order = ['Good', 'Satisfactory', 'Moderate', 'Poor', 'Very Poor', 'Severe']
+            
+            # Ensure all categories are present (fill with 0 if missing)
+            for cat in category_order:
+                if cat not in aqi_bucket_counts['AQI Category'].values:
+                    aqi_bucket_counts = pd.concat([
+                        aqi_bucket_counts,
+                        pd.DataFrame({'AQI Category': [cat], 'Count': [0]})
+                    ], ignore_index=True)
+            
+            # Convert to categorical with correct ordering
+            aqi_bucket_counts['AQI Category'] = pd.Categorical(
+                aqi_bucket_counts['AQI Category'],
+                categories=category_order,
+                ordered=True
+            )
+            
+            # Sort by the categorical order
+            aqi_bucket_counts = aqi_bucket_counts.sort_values('AQI Category')
+            
+            # Create figure with wider bars
+            fig = px.bar(
+                aqi_bucket_counts, 
+                x='AQI Category', 
+                y='Count', 
+                color='AQI Category',
+                color_discrete_map=aqi_color_map,
+                title="Distribution of AQI Categories",
+                category_orders={"AQI Category": category_order},
+                width=800,  # Adjust overall width
+                height=500  # Adjust height if needed
+            )
+            
+            # Customize bar width and layout
+            fig.update_traces(
+                width=1,  
+                marker_line_color='rgb(0,0,0)',
+                marker_line_width=0.5,
+                opacity=0.9
+            )
+            
+            # Improve layout
+            fig.update_layout(
+                xaxis_title="AQI Category",
+                yaxis_title="Count",
+                xaxis={
+                    'categoryorder': 'array',
+                    'categoryarray': category_order,
+                    'tickangle': 0,  # Adjust if labels are long
+                    'tickfont': {'size': 14}
+                },
+                yaxis={
+                    'gridcolor': 'lightgrey',
+                    'tickfont': {'size': 12}
+                },
+                plot_bgcolor='rgba(0,0,0,0)',
+                showlegend=False,
+                margin=dict(l=50, r=50, t=80, b=100),  # Adjust margins
+                bargap=1  # Gap between bars of different categories
+            )
+            
+            # Add value labels on top of bars
+            fig.update_traces(texttemplate='%{y}', textposition='auto')
+            
+            st.plotly_chart(fig, use_container_width=True)
         except Exception as e:
-            show_error(f"Error generating AQI category distribution: {str(e)}")
-
+            show_error(f"Error generating AQI category distribution: {str(e)}")    
+             
         # Pollutant correlation
         st.subheader("Pollutant Correlation with AQI")
         pollutant_cols = ['PM2.5', 'PM10', 'NO', 'NO2', 'NOx', 'NH3', 'CO', 'SO2', 'O3']
@@ -607,7 +710,14 @@ def main():
             
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
             
-            model = DecisionTreeRegressor(max_depth=5, random_state=42)
+            # model = DecisionTreeRegressor(max_depth=5, random_state=42)
+            model = RandomForestRegressor(
+                n_estimators=200,   # More trees → better performance (but slower)
+                max_depth=10,       # Deeper trees → more complex patterns
+                min_samples_split=5,  # Prevent overfitting
+                random_state=42,
+                n_jobs=-1
+            )
             model.fit(X_train, y_train)
             
             if hasattr(model, 'feature_names_in_'):
@@ -634,14 +744,24 @@ def main():
 
             # Feature importance
             st.subheader("Feature Importance")
+            # importance_df = pd.DataFrame({
+            #     'Feature': existing_features,
+            #     'Importance': model.feature_importances_
+            # }).sort_values('Importance', ascending=False)
+            
             importance_df = pd.DataFrame({
                 'Feature': existing_features,
-                'Importance': model.feature_importances_
+                'Importance': model.feature_importances_  # Same as Decision Tree
             }).sort_values('Importance', ascending=False)
-            
+
             fig = px.bar(importance_df, x='Importance', y='Feature', orientation='h',
                          title="Feature Importance in AQI Prediction")
             st.plotly_chart(fig, use_container_width=True)
+            
+            # # Plot the first tree in the forest
+            # plt.figure(figsize=(20, 10))
+            # plot_tree(model.estimators_[0], feature_names=existing_features, filled=True)
+            # plt.show()
             
             # Prediction interface
             st.subheader("Make a Prediction")
@@ -842,15 +962,59 @@ def main():
                 )
                 seasonal_avg = seasonal_avg.sort_values('Season')
                 
+                # fig = px.bar(
+                #     seasonal_avg,
+                #     x='Season',
+                #     y='AQI',
+                #     color='Season',
+                #     title=f"Seasonal AQI Patterns for {trend_city} in {trend_year}"
+                # )
+                # st.plotly_chart(fig, use_container_width=True)
                 fig = px.bar(
                     seasonal_avg,
                     x='Season',
                     y='AQI',
                     color='Season',
-                    title=f"Seasonal AQI Patterns for {trend_city} in {trend_year}"
+                    text='AQI',
+                    title=f"Seasonal AQI Patterns for {trend_city} in {trend_year}",
+                    category_orders={"Season": ['Winter', 'Spring', 'Summer', 'Fall']}
                 )
+
+                # Customize bar appearance and labels
+                fig.update_traces(
+                    width=0.7,  # Adjusted bar width
+                    texttemplate='%{y:.1f}',
+                    textposition='inside',
+                    insidetextanchor='middle',  # Ensures perfect vertical centering
+                    marker_line_color='rgb(0,0,0)',
+                    marker_line_width=1,
+                    opacity=0.9
+                )
+
+                # Critical fix for label alignment
+                fig.update_layout(
+                    xaxis = dict(
+                        title="Season",
+                        tickmode = 'array',  # Explicit tick positioning
+                        tickvals = [0, 1, 2, 3],  # Matches the 4 seasons
+                        ticktext = ['Winter', 'Spring', 'Summer', 'Fall'],  # Explicit labels
+                        tickangle = 0,
+                        tickfont = dict(size=14)
+                    ),
+                    yaxis_title="Average AQI",
+                    showlegend=False,
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    margin=dict(l=50, r=50, t=80, b=80)
+                )
+
+                # Add vertical grid lines to visually confirm alignment
+                fig.update_xaxes(
+                    showgrid=True,
+                    gridwidth=1,
+                    gridcolor='rgba(211, 211, 211, 0.3)'
+                )
+
                 st.plotly_chart(fig, use_container_width=True)
-                
                 # Pollutant composition by season
                 if existing_pollutants:
                     seasonal_pollutants = city_year_df.groupby('Season')[existing_pollutants].mean().reset_index()
