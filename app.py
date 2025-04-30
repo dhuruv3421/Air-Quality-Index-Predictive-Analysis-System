@@ -754,7 +754,7 @@ def main():
                 'Importance': model.feature_importances_  # Same as Decision Tree
             }).sort_values('Importance', ascending=False)
 
-            fig = px.bar(importance_df, x='Importance', y='Feature', orientation='h',
+            fig = px.bar(importance_df, x='Affect', y='Feature', orientation='h',
                          title="Features That Affect AQI the Most")
             st.plotly_chart(fig, use_container_width=True)
             
