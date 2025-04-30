@@ -743,7 +743,7 @@ def main():
                 st.metric("Mean Squared Error", f"{mse:.2f}")
 
             # Feature importance
-            st.subheader("Feature Importance")
+            st.subheader("Feature That Affect AQI the Most")
             # importance_df = pd.DataFrame({
             #     'Feature': existing_features,
             #     'Importance': model.feature_importances_
@@ -755,7 +755,7 @@ def main():
             }).sort_values('Importance', ascending=False)
 
             fig = px.bar(importance_df, x='Importance', y='Feature', orientation='h',
-                         title="Feature Importance in AQI Prediction")
+                         title="Features That Affect AQI the Most")
             st.plotly_chart(fig, use_container_width=True)
             
             # # Plot the first tree in the forest
